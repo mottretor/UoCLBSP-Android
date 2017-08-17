@@ -16,12 +16,8 @@ import android.widget.RelativeLayout;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.common.api.Status;
 import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.location.places.Place;
 import com.google.android.gms.location.places.Places;
-import com.google.android.gms.location.places.ui.PlaceAutocompleteFragment;
-import com.google.android.gms.location.places.ui.PlaceSelectionListener;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -29,20 +25,16 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 
-import com.google.android.gms.maps.model.LatLngBounds;
-import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback,
         GoogleApiClient.ConnectionCallbacks,
-        GoogleApiClient.OnConnectionFailedListener,
-        PlaceSelectionListener{
+        GoogleApiClient.OnConnectionFailedListener {
 
     private GoogleMap mMap;
     private CameraPosition mCameraPosition;
     private GoogleApiClient mGoogleApiClient;
     View mapView;
-    private Marker marker;
 
     private final LatLng mDefaultLocation = new LatLng(6.9022, 79.8607);
     private static final int DEFAULT_ZOOM = 16;
@@ -52,7 +44,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private Location mLastKnownLocation;
 
     private static final String KEY_CAMERA_POSITION = "camera_position";
-    private static final String KEY_LOCATION = "location";cmd
+    private static final String KEY_LOCATION = "location";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,13 +63,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .addApi(Places.PLACE_DETECTION_API)
                 .build();
         mGoogleApiClient.connect();
-
-        PlaceAutocompleteFragment autocompleteFragment = (PlaceAutocompleteFragment)
-                getFragmentManager().findFragmentById(R.id.autocomplete_fragment);
-
-        autocompleteFragment.setOnPlaceSelectedListener(this);
-
-
 
     }
 
@@ -226,21 +211,5 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
 
-    @Override
-    public void onPlaceSelected(Place place) {
-        if (marker!=null){
-            marker.remove();
-        }
 
-        marker = mMap.addMarker(new MarkerOptions()
-                .position(place.getLatLng())
-                .title(place.getName().toString()));
-        if (mLastKnownLocation!=null){
-        //mMap.moveCamera(CameraUpdateFactory.newLatLngBounds(new LatLngBounds(place.getLatLng(),new LatLng(mLastKnownLocation.getLatitude(),mLastKnownLocation.getLongitude())), 0));
-    }}
-
-    @Override
-    public void onError(Status status) {
-
-    }
 }
