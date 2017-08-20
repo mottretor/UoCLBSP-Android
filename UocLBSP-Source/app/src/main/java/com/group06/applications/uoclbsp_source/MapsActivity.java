@@ -1,12 +1,21 @@
 package com.group06.applications.uoclbsp_source;
 
+import android.app.SearchManager;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.location.Location;
 import android.os.Bundle;
+import android.os.StrictMode;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.content.ContextCompat;
+import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.Toolbar;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
+import android.widget.ArrayAdapter;
+import android.widget.ListView;
 import android.widget.RelativeLayout;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -17,8 +26,22 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.miguelcatalan.materialsearchview.MaterialSearchView;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.net.URL;
+import java.net.URLConnection;
+import java.net.URLEncoder;
+import java.util.ArrayList;
+import java.util.List;
+
+
+public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback {
 
     private static final int PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 1;
     View mapView;
@@ -26,6 +49,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private FusedLocationProviderClient mFusedLocationClient;
     private boolean mLocationPermissionGranted;
     private Location mLastKnownLocation;
+
+    MaterialSearchView searchView;
+    ListView lstView;
+
+    String[] lstSource = {};
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,8 +66,120 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
         mapView = mapFragment.getView();
+
+        Toolbar toolbar = (Toolbar)findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+        getSupportActionBar().setTitle("UOC Maps");
+        toolbar.setTitleTextColor(Color.parseColor("#FFFFFF"));
+
+        lstView = (ListView)findViewById(R.id.lstView);
+        ArrayAdapter adapter = new ArrayAdapter(this,android.R.layout.simple_list_item_1,lstSource);
+        lstView.setAdapter(adapter);
+
+        searchView = (MaterialSearchView)findViewById(R.id.search_view);
+
+        searchView.setOnSearchViewListener(new MaterialSearchView.SearchViewListener() {
+            @Override
+            public void onSearchViewShown() {
+
+            }
+
+            @Override
+            public void onSearchViewClosed() {
+
+                //If closed Search View , lstView will return default
+                lstView = (ListView)findViewById(R.id.lstView);
+                ArrayAdapter adapter = new ArrayAdapter(MapsActivity.this,android.R.layout.simple_list_item_1,lstSource);
+                lstView.setAdapter(adapter);
+
+            }
+        });
+
+        searchView.setOnQueryTextListener(new MaterialSearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                return false;
+            }
+
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                if(newText != null && !newText.isEmpty()){
+
+                    try {
+                        StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
+                        StrictMode.setThreadPolicy(policy);
+                        String link = "http://ec2-52-72-156-17.compute-1.amazonaws.com/UoCLBSP-Web/res/getbuilding.php";
+
+
+                        String data  = URLEncoder.encode("text", "UTF-8") + "=" +
+                                URLEncoder.encode(newText, "UTF-8");
+
+
+                        URL url = new URL(link);
+                        URLConnection conn = url.openConnection();
+
+                        conn.setDoOutput(true);
+                        OutputStreamWriter wr = new OutputStreamWriter(conn.getOutputStream());
+
+                        wr.write( data );
+                        wr.flush();
+
+                        BufferedReader reader = new BufferedReader(new
+                                InputStreamReader(conn.getInputStream()));
+
+                        StringBuilder sb = new StringBuilder();
+                        String line = null;
+
+                        // Read Server Response
+                        while((line = reader.readLine()) != null) {
+                            sb.append(line);
+                            break;
+                        }
+                        String results = sb.toString();
+
+                        JSONObject jsonObject = new JSONObject(results);
+                        JSONArray jsonArray = jsonObject.getJSONArray("result");
+
+
+                        List<String> lstFound = new ArrayList<String>();
+                        System.out.println(results);
+                        for(int i = 0; i<jsonArray.length()&& i<3;i++){
+
+                            lstFound.add(jsonArray.getJSONObject(i).getString("name"));
+                        }
+
+                        ArrayAdapter adapter = new ArrayAdapter(MapsActivity.this,android.R.layout.simple_list_item_1,lstFound);
+                        lstView.setAdapter(adapter);
+                    }catch (Exception e){
+                        e.printStackTrace();
+                    }
+
+                }
+                else{
+                    //if search text is null
+                    //return default
+                    ArrayAdapter adapter = new ArrayAdapter(MapsActivity.this,android.R.layout.simple_list_item_1,lstSource);
+                    lstView.setAdapter(adapter);
+                }
+                return true;
+            }
+
+        });
+
+
+
+
+
     }
-    
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_item,menu);
+        MenuItem item = menu.findItem(R.id.action_search);
+        searchView.setMenuItem(item);
+        return true;
+    }
+
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
