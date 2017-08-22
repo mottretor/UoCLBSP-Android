@@ -14,6 +14,7 @@ import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
@@ -25,6 +26,8 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.miguelcatalan.materialsearchview.MaterialSearchView;
 
@@ -54,6 +57,10 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     ListView lstView;
 
     String[] lstSource = {};
+    List<String> lstFound;
+    List<double[]> lstFoundLocation;
+
+    Marker marker;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,6 +80,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         toolbar.setTitleTextColor(Color.parseColor("#FFFFFF"));
 
         lstView = (ListView)findViewById(R.id.lstView);
+
+
         ArrayAdapter adapter = new ArrayAdapter(this,android.R.layout.simple_list_item_1,lstSource);
         lstView.setAdapter(adapter);
 
@@ -141,11 +150,13 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                         JSONArray jsonArray = jsonObject.getJSONArray("result");
 
 
-                        List<String> lstFound = new ArrayList<String>();
-                        System.out.println(results);
+                        lstFound = new ArrayList<String>();
+                        lstFoundLocation = new ArrayList<double[]>();
+
                         for(int i = 0; i<jsonArray.length()&& i<3;i++){
 
                             lstFound.add(jsonArray.getJSONObject(i).getString("name"));
+                            lstFoundLocation.add(new double[]{jsonArray.getJSONObject(i).getDouble("latitudes"),jsonArray.getJSONObject(i).getDouble("longitudes")});
                         }
 
                         ArrayAdapter adapter = new ArrayAdapter(MapsActivity.this,android.R.layout.simple_list_item_1,lstFound);
@@ -166,6 +177,22 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         });
 
+        lstView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                searchView.setQuery(lstFound.get(position),true);
+                getSupportActionBar().setTitle(lstFound.get(position));
+                double[] loc = lstFoundLocation.get(position);
+                if(marker!=null){
+                    marker.remove();
+                }
+                marker = mMap.addMarker(new MarkerOptions()
+                        .position(new LatLng(loc[0], loc[1]))
+                        .title(lstFound.get(position))
+                );
+                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(loc[0], loc[1]), 16));
+            }
+        });
 
 
 
