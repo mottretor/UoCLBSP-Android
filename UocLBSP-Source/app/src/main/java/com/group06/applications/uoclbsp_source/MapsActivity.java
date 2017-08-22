@@ -21,26 +21,34 @@ import android.widget.RelativeLayout;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.Polyline;
+import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.miguelcatalan.materialsearchview.MaterialSearchView;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 
@@ -61,6 +69,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     List<double[]> lstFoundLocation;
 
     Marker marker;
+    LatLng currLatLng;
+    Polyline polyline;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -69,7 +79,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
-        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
+        final SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
         mapView = mapFragment.getView();
@@ -190,7 +200,35 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                         .position(new LatLng(loc[0], loc[1]))
                         .title(lstFound.get(position))
                 );
-                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(loc[0], loc[1]), 16));
+
+
+                // Set the camera to the greatest possible zoom level that includes the
+                // bounds
+
+
+
+                try {
+                    getDirections(currLatLng,marker.getPosition());
+                    LatLngBounds.Builder builder = new LatLngBounds.Builder();
+
+//the include method will calculate the min and max bound.
+                    builder.include(currLatLng);
+                    builder.include(marker.getPosition());
+
+
+                    LatLngBounds bounds = builder.build();
+
+                    int width = getResources().getDisplayMetrics().widthPixels;
+                    int height = getResources().getDisplayMetrics().heightPixels;
+                    int padding = (int) (width * 0.10); // offset from edges of the map 10% of screen
+
+                    CameraUpdate cu = CameraUpdateFactory.newLatLngBounds(bounds, width, height, padding);
+
+                    mMap.animateCamera(cu);
+                }catch (Exception e){
+                    e.printStackTrace();
+                }
+
             }
         });
 
@@ -228,6 +266,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 @Override
                 public void onSuccess(Location location) {
                     if (location != null) {
+                        currLatLng = new LatLng(location.getLatitude(), location.getLongitude());
                         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(location.getLatitude(), location.getLongitude()), 16));
                     }
                 }
@@ -268,4 +307,98 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             mLastKnownLocation = null;
         }
     }
+
+    private void getDirections(LatLng origin, LatLng dest) throws Exception{
+        // Origin of route
+        String str_origin = "origin="+origin.latitude+","+origin.longitude;
+
+        // Destination of route
+        String str_dest = "destination="+dest.latitude+","+dest.longitude;
+
+        // Sensor enabled
+        String sensor = "sensor=false";
+
+        // Building the parameters to the web service
+        String parameters = str_origin+"&"+str_dest+"&"+sensor;
+
+        // Output format
+        String output = "json";
+
+        // Building the url to the web service
+        String url1 = "https://maps.googleapis.com/maps/api/directions/"+output+"?"+parameters;
+
+        String data = "";
+        InputStream iStream = null;
+        HttpURLConnection urlConnection = null;
+
+            URL ur = new URL(url1);
+
+            // Creating an http connection to communicate with url
+            urlConnection = (HttpURLConnection) ur.openConnection();
+
+            // Connecting to url
+            urlConnection.connect();
+
+            // Reading data from url
+            iStream = urlConnection.getInputStream();
+
+            BufferedReader br = new BufferedReader(new InputStreamReader(iStream));
+
+            StringBuffer sb = new StringBuffer();
+
+            String line = "";
+            while( ( line = br.readLine()) != null){
+                sb.append(line);
+            }
+
+            data = sb.toString();
+
+            br.close();
+
+        JSONObject jObject;
+        List<List<HashMap<String, String>>> routes = null;
+
+        jObject = new JSONObject(data);
+        DirectionsJSONParser parser = new DirectionsJSONParser();
+
+        // Starts parsing data
+        routes = parser.parse(jObject);
+
+        ArrayList<LatLng> points = null;
+        PolylineOptions lineOptions = null;
+        MarkerOptions markerOptions = new MarkerOptions();
+
+        // Traversing through all the routes
+        for(int i=0;i<routes.size();i++){
+            points = new ArrayList<LatLng>();
+            lineOptions = new PolylineOptions();
+
+            // Fetching i-th route
+            List<HashMap<String, String>> path = routes.get(i);
+
+            // Fetching all the points in i-th route
+            for(int j=0;j<path.size();j++){
+                HashMap<String,String> point = path.get(j);
+
+                double lat = Double.parseDouble(point.get("lat"));
+                double lng = Double.parseDouble(point.get("lng"));
+                LatLng position = new LatLng(lat, lng);
+
+                points.add(position);
+            }
+
+            // Adding all the points in the route to LineOptions
+            lineOptions.addAll(points);
+            lineOptions.width(10);
+            lineOptions.color(Color.BLUE);
+        }
+
+        // Drawing polyline in the Google Map for the i-th route
+        if(polyline!=null) {
+           polyline.remove();
+        }
+        polyline = mMap.addPolyline(lineOptions);
+    }
 }
+
+
