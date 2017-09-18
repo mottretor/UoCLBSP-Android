@@ -4,6 +4,7 @@ import android.app.SearchManager;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.location.Location;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.StrictMode;
 import android.support.v4.app.ActivityCompat;
@@ -125,52 +126,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 if(newText != null && !newText.isEmpty()){
 
                     try {
-                        StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
-                        StrictMode.setThreadPolicy(policy);
-                        String link = "http://ec2-52-72-156-17.compute-1.amazonaws.com/UoCLBSP-Web/res/getbuilding.php";
-
-
-                        String data  = URLEncoder.encode("text", "UTF-8") + "=" +
-                                URLEncoder.encode(newText, "UTF-8");
-
-
-                        URL url = new URL(link);
-                        URLConnection conn = url.openConnection();
-
-                        conn.setDoOutput(true);
-                        OutputStreamWriter wr = new OutputStreamWriter(conn.getOutputStream());
-
-                        wr.write( data );
-                        wr.flush();
-
-                        BufferedReader reader = new BufferedReader(new
-                                InputStreamReader(conn.getInputStream()));
-
-                        StringBuilder sb = new StringBuilder();
-                        String line = null;
-
-                        // Read Server Response
-                        while((line = reader.readLine()) != null) {
-                            sb.append(line);
-                            break;
-                        }
-                        String results = sb.toString();
-
-                        JSONObject jsonObject = new JSONObject(results);
-                        JSONArray jsonArray = jsonObject.getJSONArray("result");
-
-
-                        lstFound = new ArrayList<String>();
-                        lstFoundLocation = new ArrayList<double[]>();
-
-                        for(int i = 0; i<jsonArray.length()&& i<3;i++){
-
-                            lstFound.add(jsonArray.getJSONObject(i).getString("name"));
-                            lstFoundLocation.add(new double[]{jsonArray.getJSONObject(i).getDouble("latitudes"),jsonArray.getJSONObject(i).getDouble("longitudes")});
-                        }
-
-                        ArrayAdapter adapter = new ArrayAdapter(MapsActivity.this,android.R.layout.simple_list_item_1,lstFound);
-                        lstView.setAdapter(adapter);
+                        new GetSearchResults().execute(new Object[]{newText,MapsActivity.this});
                     }catch (Exception e){
                         e.printStackTrace();
                     }
@@ -316,7 +272,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         String str_dest = "destination="+dest.latitude+","+dest.longitude;
 
         // Sensor enabled
-        String sensor = "sensor=false";
+        String sensor = "sensor=false&mode=walking";
 
         // Building the parameters to the web service
         String parameters = str_origin+"&"+str_dest+"&"+sensor;
@@ -389,8 +345,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
             // Adding all the points in the route to LineOptions
             lineOptions.addAll(points);
-            lineOptions.width(10);
-            lineOptions.color(Color.BLUE);
+            lineOptions.width(20);
+            lineOptions.color(Color.rgb(21,101,192));
         }
 
         // Drawing polyline in the Google Map for the i-th route
@@ -398,6 +354,74 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
            polyline.remove();
         }
         polyline = mMap.addPolyline(lineOptions);
+    }
+}
+
+class GetSearchResults extends AsyncTask{
+
+    @Override
+    protected Object doInBackground(Object[] params) {
+        try {
+            String link = "http://ec2-52-72-156-17.compute-1.amazonaws.com/UoCLBSP-Web/res/getbuilding.php";
+
+
+            String data  = URLEncoder.encode("text", "UTF-8") + "=" +
+                    URLEncoder.encode(String.valueOf(params[0]), "UTF-8");
+
+
+            URL url = new URL(link);
+            URLConnection conn = url.openConnection();
+
+            conn.setDoOutput(true);
+            OutputStreamWriter wr = new OutputStreamWriter(conn.getOutputStream());
+
+            wr.write( data );
+            wr.flush();
+
+            BufferedReader reader = new BufferedReader(new
+                    InputStreamReader(conn.getInputStream()));
+
+            StringBuilder sb = new StringBuilder();
+            String line = null;
+
+            // Read Server Response
+            while((line = reader.readLine()) != null) {
+                sb.append(line);
+                break;
+            }
+            String results = sb.toString();
+
+            JSONObject jsonObject = new JSONObject(results);
+            JSONArray jsonArray = jsonObject.getJSONArray("result");
+            MapsActivity mapsActivity = (MapsActivity) params[1];
+            mapsActivity.lstFound = new ArrayList<String>();
+            mapsActivity.lstFoundLocation = new ArrayList<double[]>();
+
+            for(int i = 0; i<jsonArray.length()&& i<3;i++){
+
+                mapsActivity.lstFound.add(jsonArray.getJSONObject(i).getString("name"));
+                mapsActivity.lstFoundLocation.add(new double[]{jsonArray.getJSONObject(i).getDouble("latitudes"),jsonArray.getJSONObject(i).getDouble("longitudes")});
+            }
+            ArrayAdapter adapter = new ArrayAdapter(mapsActivity,android.R.layout.simple_list_item_1,mapsActivity.lstFound);
+
+
+
+            params[0] = adapter;
+            return params;
+
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+    @Override
+    protected void onPostExecute(Object o) {
+        Object[] params = (Object[]) o;
+        ArrayAdapter adapter = (ArrayAdapter) params[0];
+        MapsActivity mapsActivity = (MapsActivity) params[1];
+        mapsActivity.lstView.setAdapter(adapter);
     }
 }
 
