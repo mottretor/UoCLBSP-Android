@@ -17,8 +17,5 @@
         android:layout_height="match_parent"
         tools:context="com.group06.applications.uoclbsp_source.Map" />
 
-    <com.lapism.searchview.SearchView
-        android:id="@+id/searchView"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+
 </FrameLayout>

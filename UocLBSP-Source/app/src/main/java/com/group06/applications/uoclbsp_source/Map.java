@@ -6,11 +6,10 @@ import android.support.v4.app.FragmentActivity;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
-import com.lapism.searchview.SearchView;
 
 public class Map extends FragmentActivity implements OnMapReadyCallback {
 
-    SearchView mSearchView;
+
     private GoogleMap mMap;
 
     @Override
@@ -21,24 +20,40 @@ public class Map extends FragmentActivity implements OnMapReadyCallback {
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
-        mSearchView = (SearchView) findViewById(R.id.searchView);
+//        SearchView mSearchView = (SearchView) findViewById(R.id.searchView);
+//
+//        List<SearchItem> suggestionsList = new ArrayList<>();
+//        suggestionsList.add(new SearchItem("search1"));
+//        suggestionsList.add(new SearchItem("search2"));
+//        suggestionsList.add(new SearchItem("search3"));
+//
+//        RecyclerView.Adapter searchAdapter = new RecyclerView.Adapter() {
+//            @Override
+//            public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+//                return null;
+//            }
+//
+//            @Override
+//            public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
+//
+//            }
+//
+//            @Override
+//            public int getItemCount() {
+//                return 0;
+//            }
+//        };
+//        mSearchView.setAdapter(searchAdapter);
+//
+//        suggestionsList.add(new SearchItem("search1"));
+//        suggestionsList.add(new SearchItem("search2"));
+//        suggestionsList.add(new SearchItem("search3"));
+//        searchAdapter.notifyDataSetChanged();
 
-
-        mSearchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
-            @Override
-            public boolean onQueryTextSubmit(String query) {
-                System.out.println("Koh");
-                return false;
-            }
-
-            @Override
-            public boolean onQueryTextChange(String newText) {
-                System.out.println("Hfdg");
-
-                return false;
-            }
-        });
-
+//        List<SearchFilter> filter = new ArrayList<>();
+//        filter.add(new SearchFilter("Filter1", true));
+//        filter.add(new SearchFilter("Filter2", true));
+//        mSearchView.setFilters(filter);
 
     }
 

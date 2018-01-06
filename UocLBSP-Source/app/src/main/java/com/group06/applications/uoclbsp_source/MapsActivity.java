@@ -15,7 +15,6 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.PopupWindow;
 import android.widget.RelativeLayout;
@@ -30,6 +29,7 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
+import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.maps.android.PolyUtil;
 import com.miguelcatalan.materialsearchview.MaterialSearchView;
@@ -53,8 +53,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     GoogleMap mMap;
     MaterialSearchView searchView;
     ListView lstView;
-    String[] lstSource = {};
-    List<String> lstFound;
+    ArrayList<JSONObject> lstSource = new ArrayList<JSONObject>();
+    ArrayList<JSONObject> lstFound;
     List<double[]> lstFoundLocation;
     ArrayList<ArrayList<LatLng>> myPolygons = null;
     ArrayList<Integer> myIndex = null;
@@ -87,7 +87,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         lstView = (ListView) findViewById(R.id.lstView);
 
 
-        ArrayAdapter adapter = new ArrayAdapter(this, android.R.layout.simple_list_item_1, lstSource);
+        SearchArrayAdapter adapter = new SearchArrayAdapter(this, R.layout.uocmap_list_item, lstSource);
         lstView.setAdapter(adapter);
 
         searchView = (MaterialSearchView) findViewById(R.id.search_view);
@@ -103,7 +103,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
                 //If closed Search View , lstView will return default
                 lstView = (ListView) findViewById(R.id.lstView);
-                ArrayAdapter adapter = new ArrayAdapter(MapsActivity.this, android.R.layout.simple_list_item_1, lstSource);
+                SearchArrayAdapter adapter = new SearchArrayAdapter(MapsActivity.this, R.layout.uocmap_list_item, lstSource);
                 lstView.setAdapter(adapter);
 
             }
@@ -133,7 +133,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     //if search text is null
                     //return default
                     lstView = (ListView) findViewById(R.id.lstView);
-                    ArrayAdapter adapter = new ArrayAdapter(MapsActivity.this, android.R.layout.simple_list_item_1, lstSource);
+                    SearchArrayAdapter adapter = new SearchArrayAdapter(MapsActivity.this, R.layout.uocmap_list_item, lstSource);
                     lstView.setAdapter(adapter);
                 }
                 return true;
@@ -144,17 +144,25 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         lstView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                String title = "";
+                try {
+                    title = lstFound.get(position).getString("name");
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
                 searching = false;
-                searchView.setQuery(lstFound.get(position), true);
-                getSupportActionBar().setTitle(lstFound.get(position));
+                searchView.setQuery(title, true);
+//                getSupportActionBar().setTitle(lstFound.get(position));
                 double[] loc = lstFoundLocation.get(position);
                 if (marker != null) {
                     marker.remove();
                 }
+
                 marker = mMap.addMarker(new MarkerOptions()
                         .position(new LatLng(loc[0], loc[1]))
-                        .title(lstFound.get(position))
-                );
+                        .title(title));
+                marker.showInfoWindow();
+
                 mMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(loc[0], loc[1])));
                 lstView = (ListView) findViewById(R.id.lstView);
                 lstView.setVisibility(View.INVISIBLE);
@@ -222,8 +230,20 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         if (mLocationPermissionGranted) {
             mMap.setMyLocationEnabled(true);
             mMap.getUiSettings().setMyLocationButtonEnabled(true);
-            if (mapView != null && mapView.findViewById(Integer.parseInt("1")) != null) {
 
+            if (mapView != null && mapView.findViewById(Integer.parseInt("1")) != null) {
+                mFusedLocationClient.getLastLocation().addOnSuccessListener(this, new OnSuccessListener<Location>() {
+                    @Override
+                    public void onSuccess(Location location) {
+                        if (location != null) {
+                            mLastKnownLocation = location;
+                            //System.out.println(location);
+                        }
+                        //System.out.println("No location");
+
+
+                    }
+                });
                 View locationButton = ((View) mapView.findViewById(Integer.parseInt("1")).getParent()).findViewById(Integer.parseInt("2"));
                 RelativeLayout.LayoutParams layoutParams = (RelativeLayout.LayoutParams)
                         locationButton.getLayoutParams();
@@ -267,26 +287,28 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     public void getDirections(View view) {
 
-
+        findMyLocation();
         System.out.println("I'm alone");
-//        int sourcePoly = 0;
-//        int destinationPoly = 0;
-//        LatLng sourceLatLng = new LatLng(mLastKnownLocation.getLatitude(), mLastKnownLocation.getLongitude());
-//        LatLng destinationLatLng = marker.getPosition();
-//        for (int x = 0; x < myPolygons.size(); x++) {
-//            if (sourcePoly == 0 | destinationPoly == 0) {
-//                if (PolyUtil.containsLocation(sourceLatLng, myPolygons.get(x), true)) {
-//                    sourcePoly = myIndex.get(x);
-//                }
-//                if (PolyUtil.containsLocation(destinationLatLng, myPolygons.get(x), true)) {
-//                    destinationPoly = myIndex.get(x);
-//                }
-//            }
-//        }
-        //System.out.println(sourceLatLng.toString());
-        //System.out.println(destinationLatLng.toString());
-        //Object[] objects = new Object[]{sourceLatLng,sourcePoly,destinationLatLng,destinationPoly};
-        //new GetSearchResults().execute(new Object[]{objects, MapsActivity.this,3});
+        System.out.println(mLastKnownLocation);
+        int sourcePoly = 0;
+        int destinationPoly = 0;
+        LatLng sourceLatLng = new LatLng(mLastKnownLocation.getLatitude(), mLastKnownLocation.getLongitude());
+        LatLng destinationLatLng = marker.getPosition();
+        System.out.println(myPolygons.size());
+        for (int x = 0; x < myPolygons.size(); x++) {
+            if (sourcePoly == 0 | destinationPoly == 0) {
+                if (PolyUtil.containsLocation(sourceLatLng, myPolygons.get(x), true)) {
+                    sourcePoly = myIndex.get(x);
+                }
+                if (PolyUtil.containsLocation(destinationLatLng, myPolygons.get(x), true)) {
+                    destinationPoly = myIndex.get(x);
+                }
+            }
+        }
+        System.out.println(sourceLatLng.toString());
+        System.out.println(destinationLatLng.toString());
+        Object[] objects = new Object[]{sourceLatLng,sourcePoly,destinationLatLng,destinationPoly};
+        new GetSearchResults().execute(new Object[]{objects, MapsActivity.this,3});
     }
 
 }
@@ -326,9 +348,9 @@ class GetSearchResults extends AsyncTask {
                 jsonObject.put("inside", (int) objects[1]);
                 jsonObject1.put("source", jsonObject);
                 jsonObject = new JSONObject();
-                jsonObject.put("latitudes", ((LatLng) objects[0]).latitude);
-                jsonObject.put("longitudes", ((LatLng) objects[0]).longitude);
-                jsonObject.put("inside", (int) objects[1]);
+                jsonObject.put("latitudes", ((LatLng) objects[2]).latitude);
+                jsonObject.put("longitudes", ((LatLng) objects[2]).longitude);
+                jsonObject.put("inside", (int) objects[3]);
                 jsonObject1.put("destination", jsonObject);
             }
             line = jsonObject1.toString();
@@ -338,54 +360,26 @@ class GetSearchResults extends AsyncTask {
             response = is.readLine();
             System.out.println("Server Response : " + response);
 
-//            String link = "http://ec2-52-72-156-17.compute-1.amazonaws.com/UoCLBSP-Web/res/getbuilding.php";
-//
-//
-//            String data  = URLEncoder.encode("text", "UTF-8") + "=" +
-//                    URLEncoder.encode(String.valueOf(params[0]), "UTF-8");
-//
-//
-//            URL url = new URL(link);
-//            URLConnection conn = url.openConnection();
-//
-//            conn.setDoOutput(true);
-//            OutputStreamWriter wr = new OutputStreamWriter(conn.getOutputStream());
-//
-//            wr.write( data );
-//            wr.flush();
-
-//            BufferedReader reader = new BufferedReader(new
-//                    InputStreamReader(conn.getInputStream()));
-//
-//            StringBuilder sb = new StringBuilder();
-//            String line = null;
-//
-//            // Read Server Response
-//            while((line = reader.readLine()) != null) {
-//                sb.append(line);
-//                break;
-//            }
-//            String results = sb.toString();
-
             JSONObject jsonObject = new JSONObject(response);
             if ((int) params[2] == 1) {
                 JSONArray jsonArray = jsonObject.getJSONArray("Results");
                 MapsActivity mapsActivity = (MapsActivity) params[1];
-                mapsActivity.lstFound = new ArrayList<String>();
+                mapsActivity.lstFound = new ArrayList<JSONObject>();
                 mapsActivity.lstFoundLocation = new ArrayList<double[]>();
 
                 for (int i = 0; i < jsonArray.length(); i++) {
 
-                    mapsActivity.lstFound.add(jsonArray.getJSONObject(i).getString("name"));
+                    mapsActivity.lstFound.add(jsonArray.getJSONObject(i));
                     mapsActivity.lstFoundLocation.add(new double[]{jsonArray.getJSONObject(i).getDouble("lat"), jsonArray.getJSONObject(i).getDouble("lng")});
                 }
-                ArrayAdapter adapter = new ArrayAdapter(mapsActivity, android.R.layout.simple_list_item_1, mapsActivity.lstFound);
+                SearchArrayAdapter adapter = new SearchArrayAdapter(mapsActivity, R.layout.uocmap_list_item, mapsActivity.lstFound);
                 params[0] = adapter;
             } else if ((int) params[2] == 2) {
                 JSONArray jsonArray = jsonObject.getJSONArray("polygons");
                 params[0] = jsonArray;
             } else {
-                System.out.println(jsonObject.toString());
+                JSONArray jsonArray = jsonObject.getJSONArray("steps");
+                params[0] = jsonArray;
             }
             return params;
 
@@ -402,32 +396,40 @@ class GetSearchResults extends AsyncTask {
             Object[] params = (Object[]) o;
             MapsActivity mapsActivity = (MapsActivity) params[1];
             if ((int) params[2] == 1) {
-                ArrayAdapter adapter = (ArrayAdapter) params[0];
+                SearchArrayAdapter adapter = (SearchArrayAdapter) params[0];
                 if (mapsActivity.searching) {
                     mapsActivity.lstView.setAdapter(adapter);
                 }
             } else if ((int) params[2] == 2) {
                 JSONArray jsonArray = (JSONArray) params[0];
-
+                ArrayList<ArrayList<LatLng>> myPolygons = new ArrayList<ArrayList<LatLng>>();
+                ArrayList<Integer> myIndex = new ArrayList<Integer>();
                 for (int i = 0; i < jsonArray.length(); i++) {
                     JSONObject jsonObject = (JSONObject) jsonArray.get(i);
-                    ArrayList<ArrayList<LatLng>> myPolygons = new ArrayList<ArrayList<LatLng>>();
-                    ArrayList<Integer> myIndex = new ArrayList<Integer>();
+
                     myIndex.add(jsonObject.getInt("id"));
+
                     JSONArray jsonArray1 = jsonObject.getJSONArray("vertexes");
                     ArrayList<LatLng> points = new ArrayList<LatLng>();
                     for (int j = 0; j < jsonArray1.length(); j++) {
                         JSONObject jsonObject1 = (JSONObject) jsonArray1.get(j);
                         points.add(new LatLng(jsonObject1.getDouble("lat"), jsonObject1.getDouble("lng")));
                     }
-
                     myPolygons.add(points);
-                    mapsActivity.myPolygons = myPolygons;
-                    mapsActivity.myIndex = myIndex;
-                    mapsActivity.done = true;
-                }
-            } else {
 
+                }
+
+                mapsActivity.myPolygons = myPolygons;
+                mapsActivity.myIndex = myIndex;
+                mapsActivity.done = true;
+            } else {
+                JSONArray jsonArray = (JSONArray) params[0];
+                ArrayList<LatLng> polylines = new ArrayList<LatLng>();
+                for (int i = 0; i < jsonArray.length(); i++) {
+                    JSONObject jsonObject = (JSONObject) jsonArray.get(i);
+                    polylines.add(new LatLng(jsonObject.getDouble("lat"),jsonObject.optDouble("lng")));
+                }
+                mapsActivity.mMap.addPolyline(new PolylineOptions().addAll(polylines).width(5).color(Color.BLUE));
             }
 
         } catch (Exception e) {
