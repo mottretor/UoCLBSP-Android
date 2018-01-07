@@ -15,6 +15,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
+import android.widget.Button;
 import android.widget.ListView;
 import android.widget.PopupWindow;
 import android.widget.RelativeLayout;
@@ -26,6 +27,7 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
@@ -46,9 +48,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback {
+public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, GoogleMap.OnCameraIdleListener {
 
     private static final int PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 1;
+    public Polyline mPolyline;
     View mapView;
     GoogleMap mMap;
     MaterialSearchView searchView;
@@ -66,6 +69,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private FusedLocationProviderClient mFusedLocationClient;
     private boolean mLocationPermissionGranted;
     private Location mLastKnownLocation;
+    public Button getDirectionsButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,13 +82,15 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
         mapView = mapFragment.getView();
-
+        findMyLocation();
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         getSupportActionBar().setTitle("UOC Maps");
         toolbar.setTitleTextColor(Color.parseColor("#FFFFFF"));
 
         lstView = (ListView) findViewById(R.id.lstView);
+        getDirectionsButton = (Button) findViewById(R.id.get_directions_button);
+        getDirectionsButton.setVisibility(View.INVISIBLE);
 
 
         SearchArrayAdapter adapter = new SearchArrayAdapter(this, R.layout.uocmap_list_item, lstSource);
@@ -155,6 +161,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 //                getSupportActionBar().setTitle(lstFound.get(position));
                 double[] loc = lstFoundLocation.get(position);
                 if (marker != null) {
+                    if (mPolyline!=null){
+                        mPolyline.remove();
+                    }
                     marker.remove();
                 }
 
@@ -163,10 +172,10 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                         .title(title));
                 marker.showInfoWindow();
 
-                mMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(loc[0], loc[1])));
+                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(loc[0], loc[1]),16));
                 lstView = (ListView) findViewById(R.id.lstView);
                 lstView.setVisibility(View.INVISIBLE);
-                onButtonShowPopupWindowClick();
+                getDirectionsButton.setVisibility(View.VISIBLE);
 
 
             }
@@ -195,6 +204,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         //set move camera to current location
         setToCurrentLocation();
         new GetSearchResults().execute(new Object[]{"", MapsActivity.this, 2});
+        mMap.setOnCameraIdleListener(this);
+        mMap.setPadding(0,150,0,0);
     }
 
     private void setToCurrentLocation() {
@@ -259,31 +270,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
-    public void onButtonShowPopupWindowClick() {
 
-        // get a reference to the already created main layout
-        RelativeLayout mainLayout = (RelativeLayout)
-                findViewById(R.id.activity_maps_layout);
-
-        // inflate the layout of the popup window
-        LayoutInflater inflater = (LayoutInflater)
-                getSystemService(LAYOUT_INFLATER_SERVICE);
-        View popupView = inflater.inflate(R.layout.activity_popup, null);
-
-        // create the popup window
-        int width = RelativeLayout.LayoutParams.WRAP_CONTENT;
-        int height = RelativeLayout.LayoutParams.WRAP_CONTENT;
-        boolean focusable = false; // lets taps outside the popup also dismiss it
-        PopupWindow popupWindow = new PopupWindow(popupView, width, height, focusable);
-
-
-        // show the popup window
-        popupWindow.showAtLocation(mainLayout, Gravity.BOTTOM, 30, 30);
-
-
-        // dismiss the popup window when touched
-
-    }
 
     public void getDirections(View view) {
 
@@ -307,8 +294,22 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
         System.out.println(sourceLatLng.toString());
         System.out.println(destinationLatLng.toString());
-        Object[] objects = new Object[]{sourceLatLng,sourcePoly,destinationLatLng,destinationPoly};
-        new GetSearchResults().execute(new Object[]{objects, MapsActivity.this,3});
+        Object[] objects = new Object[]{sourceLatLng, sourcePoly, destinationLatLng, destinationPoly};
+        new GetSearchResults().execute(new Object[]{objects, MapsActivity.this, 3});
+    }
+
+    public int getLineWidth() {
+        float zoom = mMap.getCameraPosition().zoom;
+        float a = (zoom - 12 > 0 ? (zoom - 12) * (zoom - 12) : 1);
+        return Math.round(a);
+    }
+
+    @Override
+    public void onCameraIdle() {
+//        System.out.println("Called");
+        if (mPolyline != null) {
+            //mPolyline.setWidth(this.getLineWidth());
+        }
     }
 
 }
@@ -425,11 +426,23 @@ class GetSearchResults extends AsyncTask {
             } else {
                 JSONArray jsonArray = (JSONArray) params[0];
                 ArrayList<LatLng> polylines = new ArrayList<LatLng>();
+                LatLngBounds.Builder builder = new LatLngBounds.Builder();
                 for (int i = 0; i < jsonArray.length(); i++) {
                     JSONObject jsonObject = (JSONObject) jsonArray.get(i);
-                    polylines.add(new LatLng(jsonObject.getDouble("lat"),jsonObject.optDouble("lng")));
+                    LatLng myLatLng = new LatLng(jsonObject.getDouble("lat"), jsonObject.optDouble("lng"));
+                    polylines.add(myLatLng);
+                    if (i==0 | i==jsonArray.length()-1 | i%20==0){
+                        builder.include(myLatLng);
+                    }
+
                 }
-                mapsActivity.mMap.addPolyline(new PolylineOptions().addAll(polylines).width(5).color(Color.BLUE));
+                if (mapsActivity.mPolyline!=null){
+                    mapsActivity.mPolyline.remove();
+                }
+                mapsActivity.mPolyline = mapsActivity.mMap.addPolyline(new PolylineOptions().addAll(polylines).width(10).color(Color.BLUE));
+                mapsActivity.mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(builder.build(),50));
+
+                mapsActivity.getDirectionsButton.setVisibility(View.INVISIBLE);
             }
 
         } catch (Exception e) {
