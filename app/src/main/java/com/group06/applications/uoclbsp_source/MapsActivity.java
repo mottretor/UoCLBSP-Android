@@ -5,19 +5,17 @@ import android.graphics.Color;
 import android.location.Location;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.view.Gravity;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.ListView;
-import android.widget.PopupWindow;
 import android.widget.RelativeLayout;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -45,6 +43,7 @@ import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 
@@ -70,6 +69,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private boolean mLocationPermissionGranted;
     private Location mLastKnownLocation;
     public Button getDirectionsButton;
+    ArrayList<Polyline> lanePolylines = new ArrayList<Polyline>();
+    private int waitingTime = 200;
+    private CountDownTimer cntr;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -124,13 +126,27 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public boolean onQueryTextChange(String newText) {
                 searching = true;
-
+                final String clue = newText;
+                if(cntr != null){
+                    cntr.cancel();
+                }
                 if (newText != null && !newText.isEmpty()) {
 
                     try {
-                        new GetSearchResults().execute(new Object[]{newText, MapsActivity.this, 1});
-                        lstView = (ListView) findViewById(R.id.lstView);
-                        lstView.setVisibility(View.VISIBLE);
+
+                        cntr = new CountDownTimer(waitingTime, 500) {
+
+                            public void onTick(long millisUntilFinished) {
+                            }
+
+                            public void onFinish() {
+                                new GetSearchResults().execute(new Object[]{clue, MapsActivity.this, 1});
+                                lstView = (ListView) findViewById(R.id.lstView);
+                                lstView.setVisibility(View.VISIBLE);
+                            }
+                        };
+                        cntr.start();
+
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -150,6 +166,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         lstView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                if(cntr != null){
+                    cntr.cancel();
+                }
                 String title = "";
                 try {
                     title = lstFound.get(position).getString("name");
@@ -298,16 +317,24 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         new GetSearchResults().execute(new Object[]{objects, MapsActivity.this, 3});
     }
 
-    public int getLineWidth() {
+    public float getLineWidth() {
         float zoom = mMap.getCameraPosition().zoom;
-        float a = (zoom - 12 > 0 ? (zoom - 12) * (zoom - 12) : 1);
-        return Math.round(a);
+        if(zoom<11){
+            return 0;
+        }else{
+            float line = (float) ((zoom-11)*1.5);
+            return line;
+        }
+
     }
 
     @Override
     public void onCameraIdle() {
 //        System.out.println("Called");
-        if (mPolyline != null) {
+        if (lanePolylines != null) {
+            for (int i = 0; i < lanePolylines.size(); i++) {
+                lanePolylines.get(i).setWidth(this.getLineWidth());
+            }
             //mPolyline.setWidth(this.getLineWidth());
         }
     }
@@ -339,7 +366,7 @@ class GetSearchResults extends AsyncTask {
                 jsonObject1.put("input", String.valueOf(params[0]));
                 jsonObject1.put("role", "registered");
             } else if ((int) params[2] == 2) {
-                jsonObject1.put("type", "polyRequest");
+                jsonObject1.put("type", "mapRequest");
             } else {
                 Object[] objects = (Object[]) params[0];
                 jsonObject1.put("type", "getPath");
@@ -376,8 +403,8 @@ class GetSearchResults extends AsyncTask {
                 SearchArrayAdapter adapter = new SearchArrayAdapter(mapsActivity, R.layout.uocmap_list_item, mapsActivity.lstFound);
                 params[0] = adapter;
             } else if ((int) params[2] == 2) {
-                JSONArray jsonArray = jsonObject.getJSONArray("polygons");
-                params[0] = jsonArray;
+                //JSONArray jsonArray = jsonObject.getJSONArray("polygons");
+                params[0] = jsonObject;
             } else {
                 JSONArray jsonArray = jsonObject.getJSONArray("steps");
                 params[0] = jsonArray;
@@ -402,7 +429,28 @@ class GetSearchResults extends AsyncTask {
                     mapsActivity.lstView.setAdapter(adapter);
                 }
             } else if ((int) params[2] == 2) {
-                JSONArray jsonArray = (JSONArray) params[0];
+                JSONObject mapObject = (JSONObject) params[0];
+                JSONArray jsonArray = (JSONArray) mapObject.get("polygons");
+                JSONArray graphArray = (JSONArray) mapObject.get("graphs");
+
+                for (int i = 0; i < graphArray.length(); i++) {
+                    HashMap<Integer,LatLng> vertexMap = new HashMap<Integer, LatLng>();
+                    JSONObject graphElement = graphArray.getJSONObject(i);
+                    JSONArray verArray = graphElement.getJSONArray("vertexes");
+                    JSONArray edgeArray = graphElement.getJSONArray("edges");
+                    for (int j = 0; j < verArray.length(); j++) {
+                        JSONObject verObject = verArray.getJSONObject(j);
+                        vertexMap.put(verObject.getInt("id"),new LatLng(verObject.getDouble("lat"),verObject.getDouble("lng")));
+                    }
+                    for (int j = 0; j < edgeArray.length(); j++) {
+                        JSONObject edgeObject = edgeArray.getJSONObject(j);
+                        mapsActivity.lanePolylines.add(mapsActivity.mMap.addPolyline(new PolylineOptions()
+                                .add(vertexMap.get(edgeObject.getInt("source")),vertexMap.get(edgeObject.getInt("destination")))
+                                .width(mapsActivity.getLineWidth())
+                                .color(Color.rgb(242,242,242))
+                        ));
+                    }
+                }
                 ArrayList<ArrayList<LatLng>> myPolygons = new ArrayList<ArrayList<LatLng>>();
                 ArrayList<Integer> myIndex = new ArrayList<Integer>();
                 for (int i = 0; i < jsonArray.length(); i++) {
@@ -439,7 +487,12 @@ class GetSearchResults extends AsyncTask {
                 if (mapsActivity.mPolyline!=null){
                     mapsActivity.mPolyline.remove();
                 }
-                mapsActivity.mPolyline = mapsActivity.mMap.addPolyline(new PolylineOptions().addAll(polylines).width(10).color(Color.BLUE));
+                mapsActivity.mPolyline = mapsActivity.mMap.addPolyline(new PolylineOptions()
+                        .addAll(polylines)
+                        .width(10)
+                        .color(Color.BLUE)
+                        .zIndex(10)
+                );
                 mapsActivity.mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(builder.build(),50));
 
                 mapsActivity.getDirectionsButton.setVisibility(View.INVISIBLE);
