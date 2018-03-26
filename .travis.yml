@@ -23,22 +23,3 @@ android:
 
         #system images for emulator
         - sys-img-armeabi-v7a-android-23
-before_script:
-    - chmod +x gradlew      #Grant permissions
-    - android list targets
-    - echo no | android create avd --force --name test --target $ANDROID_TARGET --abi $ANDROID_ABI    #Create AVD for given api
-    - emulator -avd test -no-skin -no-audio -no-window &    #Start emulator
-
-script:
-    - echo "Travis branch is $TRAVIS_BRANCH"    #Print out which branch it is.
-    - echo "Travis branch is in pull request $TRAVIS_PULL+REQUEST"    #Print out pull request number.
-    - android-wait-for-emulator             #Run wait for the emulator script.
-    - adb devices                           #Display list of devices
-    - adb shell input keyevent 82 &
-    - ./gradlew connectedAndroidTest -PdisablePreDex --stacktrace
-
-before_install:
-    - pip install --user codecov    #Install codecov
-
-after_success:
-    - codecov                       #Run codecov
