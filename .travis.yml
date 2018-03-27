@@ -1,2 +1,2 @@
-language: android
+language: java
 install: true
