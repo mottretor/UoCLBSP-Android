@@ -3,4 +3,8 @@
     <string name="title_activity_maps">Map</string>
     <string name="username">Username</string>
     <string name="title_activity_map">UoC Maps</string>
+    <string name="directions">Get Directions</string>
+    <string name="gallery">Gallery</string>
+    <string name="near_me">Near me</string>
+    <string name="signout">Sign-out</string>
 </resources>
