@@ -6,12 +6,42 @@
     android:padding="16dp"
     android:theme="@style/ThemeOverlay.AppCompat.Dark"
     android:orientation="vertical"
-    android:gravity="bottom">
+    android:gravity="bottom"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="com.group06.applications.uoclbsp_source.GSignUp"
+    >
 
-    <TextView
+    <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="example@gmail.com"
-        android:textAppearance="@style/TextAppearance.AppCompat.Body1"/>
 
+        android:padding="16dp">
+
+        <de.hdodenhof.circleimageview.CircleImageView
+            android:id="@+id/profile_image"
+            android:layout_width="@dimen/nav_profile_image"
+            android:layout_height="@dimen/nav_profile_image"
+            android:layout_marginTop="20dp"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentTop="true"
+            />
+        <TextView
+            android:id="@+id/profile_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/profile_image"
+            android:layout_marginTop="10dp"
+            android:layout_alignParentLeft="true"
+            android:layout_centerHorizontal="true" />
+
+        <TextView
+            android:id="@+id/profile_email"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:textAppearance="@style/TextAppearance.AppCompat.Body1"
+            android:layout_alignParentLeft="true"
+            />
+
+    </RelativeLayout>
 </LinearLayout>

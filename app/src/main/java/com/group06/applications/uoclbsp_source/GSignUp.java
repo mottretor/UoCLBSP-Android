@@ -1,10 +1,12 @@
 package com.group06.applications.uoclbsp_source;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.TextView;
 
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
@@ -16,6 +18,10 @@ import com.google.android.gms.tasks.Task;
 public class GSignUp extends AppCompatActivity implements View.OnClickListener {
     GoogleSignInClient mGoogleSignInClient;
     final int RC_SIGN_IN = 100;
+    String personName;
+    String personPhoto;
+    String email;
+    TextView textView;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -45,10 +51,24 @@ public class GSignUp extends AppCompatActivity implements View.OnClickListener {
     private void updateUI(GoogleSignInAccount account) {
 
         if(account !=null){
+            System.out.println("Done");
+            personName = account.getDisplayName();
+            if(account.getPhotoUrl() !=null){
+                personPhoto = account.getPhotoUrl().toString();
+            }
+
+            email = account.getEmail();
+
+//            setProfileInfo();
+            System.out.println("email"+email+" name "+personName+" url "+personPhoto);
             Intent intent = new Intent(this,MapsActivity.class);
+            intent.putExtra("personName", personName);
+            intent.putExtra("personPhoto", personPhoto);
+            intent.putExtra("email", email);
             startActivity(intent);
             finish();
         }
+
 
 
     }
@@ -83,21 +103,55 @@ public class GSignUp extends AppCompatActivity implements View.OnClickListener {
             // a listener.
             Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
             handleSignInResult(task);
+
         }
     }
 
-    private void handleSignInResult(Task<GoogleSignInAccount> completedTask) {
+    public void handleSignInResult(Task<GoogleSignInAccount> completedTask) {
         try {
             GoogleSignInAccount account = completedTask.getResult(ApiException.class);
+            Log.i("Tag", "display name: " + account.getDisplayName());
 
             // Signed in successfully, show authenticated UI.
             updateUI(account);
+//            GoogleSignInAccount acct = GoogleSignIn.getLastSignedInAccount(this);
+//        if (acct != null) {
+//            String personName = acct.getDisplayName();
+//            String personGivenName = acct.getGivenName();
+//            String personFamilyName = acct.getFamilyName();
+//            String personEmail = acct.getEmail();
+//            String personId = acct.getId();
+//            Uri personPhoto = acct.getPhotoUrl();
+//
+//            System.out.println(personName);
+//            System.out.println(personEmail);
+//
+//        }
+
+
         } catch (ApiException e) {
+            e.printStackTrace();
             // The ApiException status code indicates the detailed failure reason.
             // Please refer to the GoogleSignInStatusCodes class reference for more information.
-            //Log.w(TAG, "signInResult:failed code=" + e.getStatusCode());
+//            Log.w(TAG, "signInResult:failed code=" + e.getStatusCode());
             updateUI(null);
+            System.out.println("nooooo");
         }
     }
+
+//    GoogleSignInAccount acct = GoogleSignIn.getLastSignedInAccount(getActivity());
+//    if (acct != null) {
+//        String personName = acct.getDisplayName();
+//        String personGivenName = acct.getGivenName();
+//        String personFamilyName = acct.getFamilyName();
+//        String personEmail = acct.getEmail();
+//        String personId = acct.getId();
+//        Uri personPhoto = acct.getPhotoUrl();
+//    }
+
+//    public void setProfileInfo(){
+//        TextView textView= findViewById(R.id.profile_name);
+//        textView.setText(personName);
+//    }
 
 }
