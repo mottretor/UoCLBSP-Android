@@ -9,7 +9,8 @@ public class Spalsh_Activity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Intent intent = new Intent(this,MapsActivity.class);
+//        Intent intent = new Intent(this,MapsActivity.class);
+        Intent intent = new Intent(this,GSignUp.class);
         startActivity(intent);
         finish();
 

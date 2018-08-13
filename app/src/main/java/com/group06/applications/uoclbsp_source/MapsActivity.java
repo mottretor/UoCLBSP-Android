@@ -1,23 +1,37 @@
 package com.group06.applications.uoclbsp_source;
 
+import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.location.Location;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.CountDownTimer;
+import android.support.design.widget.NavigationView;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.view.GravityCompat;
+import android.support.v4.widget.DrawerLayout;
+import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
+import android.widget.TextView;
 
+import com.bumptech.glide.Glide;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -33,15 +47,22 @@ import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.maps.android.PolyUtil;
 import com.miguelcatalan.materialsearchview.MaterialSearchView;
+import com.squareup.picasso.Picasso;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.InetAddress;
+import java.net.MalformedURLException;
 import java.net.Socket;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -55,6 +76,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     GoogleMap mMap;
     MaterialSearchView searchView;
     ListView lstView;
+    TextView textView;
     ArrayList<JSONObject> lstSource = new ArrayList<JSONObject>();
     ArrayList<JSONObject> lstFound;
     List<double[]> lstFoundLocation;
@@ -72,11 +94,70 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     ArrayList<Polyline> lanePolylines = new ArrayList<Polyline>();
     private int waitingTime = 200;
     private CountDownTimer cntr;
+    private DrawerLayout mDrawerLayout;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_maps);
+//        setContentView(R.layout.activity_maps);
+        setContentView(R.layout.activity_main);
+
+
+
+        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+        ActionBar actionbar = getSupportActionBar();
+        actionbar.setDisplayHomeAsUpEnabled(true);
+        actionbar.setHomeAsUpIndicator(R.drawable.ic_menu);
+
+
+
+        mDrawerLayout = findViewById(R.id.drawer_layout);
+
+        NavigationView navigationView = findViewById(R.id.nav_view);
+
+        View drawerHeader = navigationView.inflateHeaderView(R.layout.nav_header);
+
+        TextView profileName = (TextView) drawerHeader.findViewById(R.id.profile_name);
+        de.hdodenhof.circleimageview.CircleImageView imageView = (de.hdodenhof.circleimageview.CircleImageView) drawerHeader.findViewById(R.id.profile_image);
+//        TextView profileImage = (TextView) drawerHeader.findViewById(R.id.profile_image);
+        TextView profileEmail = (TextView) drawerHeader.findViewById(R.id.profile_email);
+
+        Intent intent = getIntent();
+        String personName = intent.getStringExtra("personName");
+//        Uri personPhoto = intent.getParcelableExtra("personPhoto");
+        String personPhoto = intent.getStringExtra("personPhoto");
+        String email = intent.getStringExtra("email");
+        System.out.println(personPhoto);
+
+        profileName.setText(personName);
+        profileEmail.setText(email);
+        Picasso.get()
+                .load(personPhoto)
+                .placeholder(R.drawable.ic_account)
+                .error(R.drawable.ic_error)
+                .into(imageView);
+
+
+
+        navigationView.setNavigationItemSelectedListener(
+                new NavigationView.OnNavigationItemSelectedListener() {
+                    @Override
+                    public boolean onNavigationItemSelected(MenuItem menuItem) {
+                        // set item as selected to persist highlight
+                        menuItem.setChecked(true);
+                        // close drawer when item is tapped
+                        mDrawerLayout.closeDrawers();
+
+                        // Add code here to update the UI based on the item selected
+                        // For example, swap UI fragments here
+
+                        return true;
+                    }
+                });
+
+
 
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
@@ -85,8 +166,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         mapFragment.getMapAsync(this);
         mapView = mapFragment.getView();
         findMyLocation();
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
+        Toolbar toolbar1 = (Toolbar) findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar1);
         getSupportActionBar().setTitle("UOC Maps");
         toolbar.setTitleTextColor(Color.parseColor("#FFFFFF"));
 
@@ -201,6 +282,18 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         });
 
 
+
+
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case android.R.id.home:
+                mDrawerLayout.openDrawer(GravityCompat.START);
+                return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 
     @Override

@@ -18,4 +18,6 @@
     <dimen name="search_filter_margin_top">4dp</dimen>
     <dimen name="search_filter_margin_start">12dp</dimen>
 
+    <dimen name="nav_profile_image">56dp</dimen>
+
 </resources>

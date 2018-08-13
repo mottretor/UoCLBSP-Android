@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/nav_directions"
+            android:icon="@drawable/ic_menu_directions"
+            android:title="@string/directions" />
+        <item
+            android:id="@+id/nav_nearme"
+            android:icon="@drawable/ic_menu_near_me"
+            android:title="@string/near_me" />
+        <item
+            android:id="@+id/nav_signout"
+            android:icon="@drawable/ic_menu_signout"
+            android:title="@string/signout" />
+    </group>
+</menu>
